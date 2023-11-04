@@ -1,17 +1,29 @@
-#pragma once
 #include <stdint.h>
+#include <stddef.h>
 
-uint16_t calc_crc(void* data_ptr, size_t len)
+uint16_t crc16(void* data_ptr, size_t len)
 {
     uint32_t sum = 0;
-    uint8_t *el_ptr = data_ptr;
-    for (size_t i = 0; i < (count - count % 2); i+=2)
-    {
-        sum += el_ptr[i] << 8 | el_ptr[i+1]
-    }
-    if (count % 2 != 0)
-        sum += el_ptr[count - 1] << 8;
+    uint16_t *el_ptr = data_ptr;
+    for (size_t i = 0; i < len / 2; i++)
+        sum += el_ptr[i];
+    if (len % 2 != 0)
+        sum += el_ptr[len / 2 + 1];
     if (sum > 0xFFFF)
-        return calc_crc(&sum, sizeof(sum));
-    return sum;    
+        return crc16(&sum, sizeof(sum));
+    return ~sum;
+}
+
+
+uint32_t crc32(void* data_ptr, size_t len)
+{
+    uint64_t sum = 0;
+    uint32_t *el_ptr = data_ptr;
+    for (size_t i = 0; i < len / 4; i ++)
+        sum += el_ptr[i];
+    if (len % 4 != 0)
+        sum += el_ptr[len % 4 + 1];
+    if (sum > 0xFFFFFFFF)
+        return crc16(&sum, sizeof(sum));
+    return ~sum;
 }

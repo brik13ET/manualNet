@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "locale.h": "c",
+        "udp.h": "c",
+        "ipv6.h": "c",
+        "attribute.h": "c",
+        "ethernet2.h": "c",
+        "errno.h": "c",
+        "algorithm": "c",
+        "unistd.h": "c",
+        "if_packet.h": "c",
+        "sock.h": "c",
+        "stdio.h": "c",
+        "variant.h": "c"
+    }
+}

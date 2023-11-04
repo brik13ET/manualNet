@@ -9,3 +9,4 @@
 #define I_len sizeof(I)/sizeof(wchar_t)
 #define O_len sizeof(O)/sizeof(wchar_t)
 #define FIO_len sizeof(FIO)/sizeof(wchar_t)
+#define FIO_siz sizeof(FIO)

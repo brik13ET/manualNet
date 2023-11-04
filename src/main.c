@@ -2,11 +2,74 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <errno.h>
 
+#include <ethernet2.h>
 #include <ipv6.h>
 #include <udp.h>
 #include <crc.h>
+#include <sock.h>
+
+#define DBG
+#include <debug.h>
+
 #include <variant.h>
+
+#define ptr_cmp(Pb,Pe) (void*)Pe - (void*)Pb
+
+// #define PRINT_LAYOUT
+#define SAVE_PKG
+
+typedef struct
+{
+    void* heap_ptr;
+    size_t size;
+} heap_obj;
+
+
+heap_obj make_pkg(void* data, size_t data_siz)
+{
+    uint8_t pkg_size = sizeof(eth_hdr) + sizeof(ip_header) + sizeof(udp_hdr) + data_siz + sizeof(uint32_t);
+    void* raw_pkg = malloc(pkg_size);
+
+    memset(raw_pkg, 0, pkg_size); 
+
+    eth_hdr*    eth_h   = (eth_hdr*)raw_pkg;
+    ip_header*  ip_h    = (ip_header*)( (void*)eth_h + sizeof(eth_hdr) );
+    udp_hdr*    udp_h   = (udp_hdr*)( (void*)ip_h + sizeof(ip_header) );
+    void*       pload   = (void*)udp_h + sizeof(udp_hdr);
+    uint32_t*   eth_cs  = (uint32_t*)(pload + data_siz);
+
+    eth_init(
+        eth_h, 
+        mac(0,0,0,0,0,0),
+        mac(0,0,0,0,0,0)
+    );
+
+    ip_header_init(
+        ip_h,
+        6,
+        0, // Attended bulk data traffic
+        0x12345,
+        FIO_siz + sizeof(udp_hdr),
+        17, // UDP
+        4,
+        address_init(0,0,0,1),
+        address_init(0,0,0,1)
+    );
+    udp_init(
+        udp_h,
+        5075,
+        43522,
+        FIO_siz + sizeof(udp_hdr),
+        crc16(data + sizeof(ip_header), sizeof(udp_hdr) + FIO_siz)
+    );
+
+    memcpy(pload, data, data_siz);
+
+    eth_cs = crc32(data, pkg_size);
+    return (heap_obj){.heap_ptr = raw_pkg, .size = pkg_size};
+}
 
 int main(int argc, char* argv[])
 {
@@ -24,34 +87,37 @@ int main(int argc, char* argv[])
             "tcp",
         I_len % 2 == 0 ? "IPv4" : "IPv6"
     );
-
-    uint8_t pkg_size = sizeof(ip_header) + sizeof(udp_hdr) + FIO_len;
-    void* data = malloc(pkg_size);
-
-    ip_header* ip_h = (ip_header*)data;
-    udp_hdr* udp_h = (udp_hdr*)(data + sizeof(ip_header));
-    void* pload = data + sizeof(ip_header) + sizeof(udp_hdr);
-
-    ip_h->version = 6;
-    ip_h->t_class = 4 << 2 | 4 << 5 | 1;
-    ip_h->flow_label = 0x55555;
-    ip_h->payload_len = FIO_len + sizeof(udp_h);
-    ip->next_hdr = 17; // UDP
-    ip_h->hop_lim = 0xFF;
-    ip_h->src_addr = address_init(0,0,0,1);
-    ip_h->dest_addr = address_init(0,0,0,1);
-
-    udp_h->ip->src_addr = address_init(0,0,0,1);
-    udp_h->ip->dst_addr = address_init(0,0,0,1);
-    udp_h->ip->udp_len = FIO_len + sizeof(udp_h);
-    udp_h->ip->zeros = 0;
-    udp_h->ip->next_hdr = 17; // UDP
-    udp_h->port_src = 43521;
-    udp_h->port_dest = 43521;
-    udp_h->dg_len = FIO_len;
-    udp_h->csum = calc_crc(data + sizeof(ip_header), sizeof(udp_hdr) + FIO_len);
-
     
-    free(data);
+    heap_obj pkg = make_pkg(FIO, FIO_siz);
+
+    #ifdef SAVE_PKG
+    FILE* fd = fopen("./pkg_dump.bin", "wb+");
+
+    fwrite(pkg.heap_ptr, pkg.size, 1, fd);
+
+    fclose(fd);
+    #endif
+    
+    if (init("lo\0"))
+    {
+        fprintf(stderr, "Init fail: %d\n", errno);
+        exit(errno);
+    }
+    printf("Init()\tOK\n");
+
+    int sendro_res = sendTo(pkg.heap_ptr, pkg.size);
+    printf("sendTo()\tOK\n");
+
+    uint8_t buf[4];
+    uint8_t* rx_dat = recvFrom(
+        buf,
+        0,
+        0
+    );
+    printf("recvFrom()\tOK\n");
+
+    deinit();
+    
+    free(pkg.heap_ptr);
 
 }

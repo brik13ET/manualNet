@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <ipv6.h>
-#include <attributes.h>
+#include <attribute.h>
 
 typedef struct
 {
@@ -15,9 +15,16 @@ typedef struct
 
 typedef struct
 {
-    udp_ip   ip;
     uint16_t port_src;
     uint16_t port_dest;
     uint16_t dg_len;
     uint16_t csum;
 } attribute(packed) udp_hdr;
+
+udp_hdr* udp_init(
+    udp_hdr* hdr_ptr,
+    uint16_t port_src,
+    uint16_t port_dest,
+    uint16_t dg_len,
+    uint16_t csum
+);
