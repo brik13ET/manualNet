@@ -40,10 +40,11 @@ heap_obj make_pkg(void* data, size_t data_siz)
     void*       pload   = (void*)udp_h + sizeof(udp_hdr);
     uint32_t*   eth_cs  = (uint32_t*)(pload + data_siz);
 
+    
     eth_init(
-        eth_h, 
-        mac(0,0,0,0,0,0),
-        mac(0,0,0,0,0,0)
+        eth_h,
+        mac(0x00,0xe0,0x4c,0x68,0x00,0x07),
+        mac(0x00,0xe0,0x4c,0x68,0x00,0x07)
     );
 
     ip_header_init(
@@ -67,7 +68,7 @@ heap_obj make_pkg(void* data, size_t data_siz)
 
     memcpy(pload, data, data_siz);
 
-    eth_cs = crc32(data, pkg_size);
+    *eth_cs = crc32(data, pkg_size);
     return (heap_obj){.heap_ptr = raw_pkg, .size = pkg_size};
 }
 
